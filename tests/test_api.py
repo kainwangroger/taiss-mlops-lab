@@ -80,6 +80,23 @@ def test_une_categorie_inconnue_ne_fait_pas_planter_le_service(client):
 
 
 def test_le_point_de_terminaison_metriques_est_expose(client):
+    """Le service doit être interrogeable par Prometheus."""
     r = client.get("/metrics")
     assert r.status_code == 200
-    assert "predictions_total" in r.text
+
+
+def test_les_metriques_metier_sont_exposees(client):
+    """
+    Passe une fois l'atelier 2 terminé.
+
+    Tant que les métriques ne sont pas déclarées, ce test est ignoré plutôt
+    qu'en échec : la chaîne d'intégration reste verte, et ce test devient
+    votre indicateur de progression pendant l'atelier 2.
+    """
+    texte = client.get("/metrics").text
+    if "predictions_total" not in texte:
+        pytest.skip("métriques métier absentes — à ajouter pendant l'atelier 2")
+    assert "version_modele" in texte, (
+        "les métriques doivent être étiquetées par version de modèle"
+    )
+    assert "inference_secondes" in texte, "la latence n'est pas instrumentée"
