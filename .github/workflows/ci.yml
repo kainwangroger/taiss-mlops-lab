@@ -1,0 +1,101 @@
+name: ci-mlops
+
+# Deux déclencheurs, un seul fichier.
+#   pull_request : la chaîne d'intégration, déclenchée par une action humaine.
+#   schedule     : le réentraînement hebdomadaire, déclenché par le calendrier.
+#                  C'est votre premier « entraînement continu », sans outil
+#                  supplémentaire.
+#   workflow_dispatch : pour relancer à la main depuis l'onglet Actions.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  qualite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # --- Étage 1 et 2 : rapides, sur chaque commit ------------------------
+      - name: Vérifier le style
+        run: ruff check src tests
+
+      - name: Tests unitaires du code
+        run: pytest tests/test_features.py -q
+
+      - name: Contrat de données
+        run: pytest tests/test_data_contract.py -q
+
+      # --- Entraînement ------------------------------------------------------
+      - name: Entraîner le modèle
+        run: python -m src.train
+
+      # --- Étage 3 : qualité du modèle --------------------------------------
+      # ATELIER 1, étape 3 : cette étape est celle qui refuse la fusion.
+      # C'est elle qui passera au rouge quand vous monterez le seuil à 0.95.
+      - name: Porte de qualité du modèle
+        run: |
+          pytest tests/test_model_quality.py -q
+          python -m src.evaluate
+
+      # --- Étage 4 : intégration du service ---------------------------------
+      - name: Tests d'intégration de l'API
+        run: pytest tests/test_api.py -q
+
+      # --- Sortie : l'artefact ----------------------------------------------
+      - name: Publier le modèle et les métriques
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modele-${{ github.sha }}
+          path: |
+            models/modele.pkl
+            reports/metriques.json
+          retention-days: 14
+
+  # Ce job ne construit l'image que si la qualité est au vert, et seulement
+  # sur la branche principale. Il n'a besoin d'aucun secret : l'image est
+  # construite et testée, pas poussée vers un registre externe.
+  image:
+    needs: qualite
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construire l'image
+        run: docker build -t fraude:${GITHUB_SHA::7} .
+
+      - name: Vérifier que le conteneur démarre et répond
+        run: |
+          docker run -d --name api -p 8000:8000 fraude:${GITHUB_SHA::7}
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null; then break; fi
+            sleep 2
+          done
+          curl -sf http://localhost:8000/health
+          curl -sf -X POST http://localhost:8000/predict \
+            -H 'Content-Type: application/json' \
+            -d '{"montant":45000,"heure":21,"frequence_7j":4,"anciennete_jours":35,"type_contrepartie":"particulier"}'
+          docker rm -f api

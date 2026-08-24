@@ -1,0 +1,49 @@
+# Pile de monitoring de l'atelier 2.
+#
+#   api        : le service de prédiction, celui de mercredi, instrumenté.
+#   prometheus : collecte les métriques exposées sur /metrics.
+#   grafana    : les affiche. Le tableau de bord est pré-provisionné, vous
+#                n'avez rien à construire : il doit s'afficher tout seul.
+#
+#   docker compose up -d      pour lancer
+#   docker compose down       pour tout arrêter
+
+services:
+  api:
+    build: .
+    container_name: taiss-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: taiss-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2h
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: taiss-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      # Pas d'authentification : c'est un lab, pas une production.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: "light"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped

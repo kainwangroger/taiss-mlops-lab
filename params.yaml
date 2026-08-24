@@ -1,0 +1,42 @@
+# Tous les paramètres du projet. Aucune valeur en dur ailleurs dans le code.
+# C'est ce fichier que vous modifiez pendant l'atelier 1.
+
+graine: 42
+version_modele: "fraude-v1"
+
+donnees:
+  reference: data/reference_2025.csv
+  derive: data/drifted_2026.csv
+  part_test: 0.25
+
+modele:
+  n_estimators: 150
+  max_depth: 12
+  min_samples_leaf: 3
+
+# ---------------------------------------------------------------------------
+# ATELIER 1 — le seuil d'acceptation.
+#
+# C'est la valeur qui décide, objectivement, si une pull request peut être
+# fusionnée. En dessous de ce F1 sur le jeu de test, la chaîne d'intégration
+# passe au rouge et la fusion est refusée.
+#
+# Étape 4 de l'atelier : montez-le à 0.95 et poussez. La CI doit échouer en
+# nommant explicitement le seuil non tenu.
+# Étape 5 : revenez à 0.60, poussez, obtenez le vert.
+# ---------------------------------------------------------------------------
+evaluation:
+  seuil_f1: 0.60
+  seuil_rappel: 0.45
+  seuil_f1_segment: 0.35   # plancher par sous-population (voir test_model_quality)
+
+# Seuil de décision du classifieur : au-dessus, la transaction est signalée.
+# En détection de fraude on ne garde jamais 0.5 par défaut — c'est un arbitrage
+# métier entre faux positifs (charge des analystes) et faux négatifs (fraude
+# non détectée). C'est aussi l'un des leviers discutés à l'atelier 3.
+  seuil_decision: 0.45
+
+# Seuils de dérive utilisés par src/drift_report.py
+derive:
+  psi_surveillance: 0.10   # entre les deux : à surveiller
+  psi_alerte: 0.25         # au-dessus : dérive avérée

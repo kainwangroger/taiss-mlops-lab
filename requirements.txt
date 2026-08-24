@@ -1,0 +1,27 @@
+# Versions épinglées. Ne les élargissez pas sans rejouer les trois ateliers
+# de bout en bout sur une machine vierge : c'est le principal risque de
+# régression d'un lab.
+#
+# Testé sur Python 3.11.
+
+# --- données et modèle -------------------------------------------------------
+numpy==2.1.3
+pandas==2.2.3
+scikit-learn==1.5.2
+scipy==1.14.1
+joblib==1.4.2
+PyYAML==6.0.2
+
+# --- service -----------------------------------------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+requests==2.32.3
+
+# --- monitoring --------------------------------------------------------------
+prometheus-client==0.21.1
+
+# --- qualité et tests --------------------------------------------------------
+pytest==8.3.4
+httpx==0.28.1
+ruff==0.8.4
