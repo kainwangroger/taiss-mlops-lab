@@ -43,7 +43,21 @@ pip install -r requirements.txt
 make smoke
 ```
 
-Vérifiez aussi que Docker démarre : `docker run hello-world`.
+Vérifiez aussi que Docker démarre :
+
+```bash
+docker --version
+docker compose version
+docker run --rm hello-world
+```
+
+Sous Windows, installez [Docker Desktop](https://www.docker.com/products/docker-desktop/),
+activez le moteur WSL 2 recommande, demarrez Docker Desktop, puis rouvrez
+PowerShell.
+
+Sous Ubuntu/Debian, installez Docker Engine et le plugin Compose depuis le
+depot officiel Docker. La procedure detaillee et les commandes de verification
+sont dans `MISE-EN-LIGNE.md`.
 
 Si l'une de ces étapes échoue, **ne cherchez pas à la résoudre seul** :
 signalez-le et venez quand même, nous prévoyons du binômage.
@@ -67,6 +81,36 @@ make replay     # rejoue du trafic normal           (atelier 2)
 make drift      # rejoue le trafic 2026 + rapport   (atelier 3)
 make down       # arrête tout
 ```
+
+Pour utiliser `replay` sans Docker, demarrez d'abord l'API dans un terminal :
+
+```bash
+python -m uvicorn src.serve:app --host 127.0.0.1 --port 8000
+```
+
+Puis, dans un second terminal :
+
+```bash
+python -m src.replay --n 500
+```
+
+Avec Docker Compose, l'API est exposee sur le port `8001` :
+
+```bash
+docker compose up -d --build
+python -m src.replay --url http://localhost:8001 --n 500
+```
+
+Si `replay` affiche `Connection refused` ou `WinError 10061`, aucun service
+n'ecoute sur l'URL utilisee. Verifiez d'abord :
+
+```bash
+curl http://localhost:8000/health
+```
+
+Sous PowerShell, utilisez `Invoke-RestMethod http://localhost:8000/health`.
+Les tests `pytest` peuvent pourtant passer, car ils testent l'application
+directement et ne demarrent pas de serveur HTTP.
 
 | Service | Adresse |
 |---|---|
