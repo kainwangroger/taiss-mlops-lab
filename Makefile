@@ -44,10 +44,10 @@ serve:
 	uvicorn src.serve:app --host 0.0.0.0 --port 8000 --reload
 
 replay:
-	python -m src.replay --n 500
+	python -m src.replay --n 500 --url http://localhost:8001
 
 drift:
-	python -m src.replay --input data/drifted_2026.csv --n 800
+	python -m src.replay --input data/drifted_2026.csv --n 800 --url http://localhost:8001
 	python -m src.drift_report
 	@echo ""
 	@echo "Ouvrez reports/derive.html dans votre navigateur."
@@ -55,9 +55,9 @@ drift:
 up:
 	docker compose up -d --build
 	@echo ""
-	@echo "  API        http://localhost:8000/docs"
-	@echo "  Prometheus http://localhost:9090"
-	@echo "  Grafana    http://localhost:3000"
+	@echo "  API        http://localhost:8001/docs"
+	@echo "  Prometheus http://localhost:9091"
+	@echo "  Grafana    http://localhost:3002"
 
 down:
 	docker compose down

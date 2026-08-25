@@ -28,7 +28,7 @@ modèle n'a changé.**
 Assurez-vous que la pile de l'atelier 2 tourne encore, puis :
 
 ```bash
-python -m src.replay --input data/drifted_2026.csv --n 800
+python -m src.replay --input data/drifted_2026.csv --n 800 --url http://localhost:8001
 ```
 
 Comparez le **taux de signalement** affiché à celui de l'atelier 2. Regardez

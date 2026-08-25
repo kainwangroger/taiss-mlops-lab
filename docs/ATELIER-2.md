@@ -46,16 +46,16 @@ Puis regardez la sortie brute des métriques : <http://localhost:8000/metrics>
 ## Étape 2 — Lancer la pile (4 min)
 
 ```bash
-make up
+make up      # pile Docker : API sur le port 8001
 ```
 
 Trois conteneurs démarrent :
 
 | Service | Adresse | Rôle |
 |---|---|---|
-| API | <http://localhost:8000/docs> | le service de prédiction |
-| Prometheus | <http://localhost:9090> | collecte les métriques toutes les 5 s |
-| Grafana | <http://localhost:3000> | les affiche |
+| API | <http://localhost:8001/docs> | le service de prédiction |
+| Prometheus | <http://localhost:9091> | collecte les métriques toutes les 5 s |
+| Grafana | <http://localhost:3002> | les affiche |
 
 Le tableau de bord est **pré-provisionné** : vous n'avez rien à construire. Il
 s'appelle « TAISS 2026 — Détection de fraude », dans le dossier TAISS 2026.
@@ -102,7 +102,7 @@ d'où elle vient — et vers laquelle on peut revenir en une commande.
 | Symptôme | Que faire |
 |---|---|
 | `port is already allocated` | Des conteneurs tournent encore : `docker compose down`, puis `docker ps -a` |
-| Le tableau de bord reste vide | Aucun trafic généré, ou la cible Prometheus est fausse. Vérifiez <http://localhost:9090/targets> : la cible `api:8000` doit être `UP` |
+| Le tableau de bord reste vide | Aucun trafic généré, ou la cible Prometheus est fausse. Vérifiez <http://localhost:9091/targets> : la cible `api:8000` doit être `UP` |
 | Mémoire insuffisante | Trois conteneurs sur une machine modeste. Binômez sur le poste le plus puissant |
 | Grafana demande un mot de passe | L'accès anonyme est activé dans `docker-compose.yml` ; sinon `admin` / `admin` |
 

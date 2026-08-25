@@ -70,10 +70,10 @@ make down       # arrête tout
 
 | Service | Adresse |
 |---|---|
-| API (documentation interactive) | <http://localhost:8000/docs> |
-| Métriques brutes | <http://localhost:8000/metrics> |
-| Prometheus | <http://localhost:9090> |
-| Grafana | <http://localhost:3000> |
+| API (documentation interactive) | <http://localhost:8001/docs> |
+| Métriques brutes | <http://localhost:8001/metrics> |
+| Prometheus | <http://localhost:9091> |
+| Grafana | <http://localhost:3002> |
 
 ---
 
