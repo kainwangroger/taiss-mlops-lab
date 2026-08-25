@@ -54,8 +54,8 @@ def rejouer(chemin: str, n: int, url: str, pause: float) -> pd.DataFrame:
                 print(f"  erreur sur la requête {i} : {exc}", file=sys.stderr)
         if pause:
             time.sleep(pause)
-        if (i + 1) % 100 == 0:
-            print(f"  {i + 1}/{len(df)} requêtes envoyées")
+        if (i + 1) % 10 == 0 or i + 1 == len(df):
+            print(f"  {i + 1}/{len(df)} requêtes envoyées", flush=True)
 
     duree = time.time() - debut
     resultat = pd.DataFrame(lignes)
