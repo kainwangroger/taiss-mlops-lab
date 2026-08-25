@@ -101,6 +101,15 @@ docker compose up -d --build
 python -m src.replay --url http://localhost:8001 --n 500
 ```
 
+Pour l'atelier 3, rejouez le trafic derive 2026 sur la meme API Docker :
+
+```powershell
+python -m src.replay `
+    --url http://localhost:8001 `
+    --input data/drifted_2026.csv `
+    --n 800
+```
+
 Si `replay` affiche `Connection refused` ou `WinError 10061`, aucun service
 n'ecoute sur l'URL utilisee. Verifiez d'abord :
 
