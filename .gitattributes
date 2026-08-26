@@ -1,0 +1,21 @@
+# Fins de ligne — normalisées pour tout le monde.
+#
+# Sans ce fichier, un participant sous Windows dont l'éditeur écrit en CRLF
+# voit sa pull request de l'atelier 1 toucher trente fichiers sans raison.
+# « text=auto » stocke tout en LF dans le dépôt, quelle que soit la machine.
+* text=auto
+
+# Ces fichiers doivent rester en LF jusque dans le conteneur : un script shell
+# ou un Dockerfile en CRLF échoue à l'exécution sous Linux.
+*.sh        text eol=lf
+*.py        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+Dockerfile* text eol=lf
+Makefile    text eol=lf
+
+# PowerShell reste en CRLF, la convention de la plateforme.
+*.ps1       text eol=crlf
+
+# Données : du texte, mais que personne ne devrait fusionner à la main.
+*.csv       text eol=lf -merge
