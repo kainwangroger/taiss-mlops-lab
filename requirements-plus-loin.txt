@@ -1,0 +1,10 @@
+# Section « aller plus loin » — hors ateliers.
+#
+# Volontairement separee : ni la chaine d'integration, ni l'image de l'API, ni
+# la console n'installent MLflow. Le lab fonctionne entierement sans ce fichier.
+#
+#     pip install -r requirements-plus-loin.txt
+
+-r requirements.txt
+
+mlflow==2.19.0

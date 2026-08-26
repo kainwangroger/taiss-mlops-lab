@@ -1,0 +1,25 @@
+# ------------------------------------------------------------------------------
+# Serveur MLflow — section « aller plus loin », hors ateliers.
+#
+# Construit ici plutôt que tiré d'une image publique : la version est celle de
+# requirements-plus-loin.txt, donc exactement celle qu'installe le participant.
+# Un client et un serveur qui divergent, c'est la panne la plus obscure de
+# MLflow.
+# ------------------------------------------------------------------------------
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# mlflow server a besoin de sqlite ; le reste vient du paquet.
+RUN pip install --no-cache-dir mlflow==2.19.0
+
+WORKDIR /mlruns
+EXPOSE 5000
+
+CMD ["mlflow", "server", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--backend-store-uri", "sqlite:////mlruns/mlflow.db", \
+     "--default-artifact-root", "/mlruns/artifacts"]

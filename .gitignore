@@ -12,6 +12,10 @@ models/*.pkl
 reports/*.json
 reports/*.html
 reports/*.csv
+logs/*.log
+logs/*.log.*
+mlruns/*
+!mlruns/.gitkeep
 
 .DS_Store
 .env

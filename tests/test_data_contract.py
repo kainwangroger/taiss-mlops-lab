@@ -10,6 +10,7 @@ ATELIER 1, étape 2
 Trois tests sont déjà écrits pour vous servir de modèle. Trois autres sont à
 compléter : cherchez les marqueurs « À COMPLÉTER ».
 Le contrat de référence se trouve dans src/features.py, dictionnaire CONTRAT.
+Le code à coller est dans docs/ATELIER-1.md, étape 5.
 ------------------------------------------------------------------------------
 """
 
@@ -97,3 +98,5 @@ def test_la_cible_est_binaire_et_rare(donnees):
     il signale une erreur de jointure en amont.
     """
     pytest.skip("À compléter pendant l'atelier 1")
+
+

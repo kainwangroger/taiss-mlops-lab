@@ -30,6 +30,7 @@ import pandas as pd
 import yaml
 from scipy import stats
 
+from src import journal
 from src.features import COLONNES_CATEGORIELLES, COLONNES_NUMERIQUES
 
 RACINE = pathlib.Path(__file__).resolve().parents[1]
@@ -205,6 +206,7 @@ comprendre pourquoi, produit un modèle qui se trompe autrement.
 
 
 def principal():
+    log = journal.configurer("derive")
     ap = argparse.ArgumentParser(description="Produit un rapport de dérive.")
     ap.add_argument("--reference", default=None)
     ap.add_argument("--courant", default=None)
@@ -222,16 +224,16 @@ def principal():
 
     resultats = analyser(ref, cou, params)
 
-    print(f"{'variable':<22}{'PSI':>8}   verdict")
-    print("-" * 56)
+    journal.dire(log, f"{'variable':<22}{'PSI':>8}   verdict")
+    journal.dire(log, "-" * 56)
     for r in resultats:
         marque = f"  ← nouvelle catégorie : {r['nouveau']}" if r["nouveau"] else ""
-        print(f"{r['variable']:<22}{r['psi']:>8.3f}   {r['verdict']}{marque}")
+        journal.dire(log, f"{r['variable']:<22}{r['psi']:>8.3f}   {r['verdict']}{marque}")
 
     (RACINE / "reports").mkdir(exist_ok=True)
     chemin = RACINE / args.sortie
     chemin.write_text(rendre_html(resultats, ref, cou, nom_ref, nom_cou), encoding="utf-8")
-    print(f"\nRapport écrit dans {args.sortie} — ouvrez-le dans votre navigateur.")
+    journal.dire(log, f"\nRapport écrit dans {args.sortie} — ouvrez-le dans votre navigateur.")
 
 
 if __name__ == "__main__":

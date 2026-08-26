@@ -21,6 +21,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
+from src import journal, suivi
 from src.features import (
     CIBLE,
     COLONNES_CATEGORIELLES,
@@ -100,11 +101,19 @@ def entrainer() -> dict:
     with open(RACINE / "reports" / "metriques.json", "w", encoding="utf-8") as f:
         json.dump(metriques, f, indent=2, ensure_ascii=False)
 
+    # Section « aller plus loin », hors ateliers : sans MLFLOW_TRACKING_URI,
+    # cet appel ne fait rien et la sortie reste exactement celle d'avant.
+    run = suivi.enregistrer(params, metriques, pipeline)
+    if run:
+        metriques["run_mlflow"] = run
+
     return metriques
 
 
 if __name__ == "__main__":
+    log = journal.configurer("train")
+    journal.demarrer(log, "entraînement")
     m = entrainer()
-    print("Modèle entraîné et sauvegardé dans models/modele.pkl")
+    journal.dire(log, "Modèle entraîné et sauvegardé dans models/modele.pkl")
     for cle, valeur in m.items():
-        print(f"  {cle:<16} {valeur}")
+        journal.dire(log, f"  {cle:<16} {valeur}")

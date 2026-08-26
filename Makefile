@@ -1,4 +1,4 @@
-.PHONY: help smoke install train evaluate test lint serve replay drift up down clean
+.PHONY: help smoke install install-console train evaluate test lint serve console replay drift up down logs clean
 
 help:
 	@echo "Cibles disponibles :"
@@ -8,13 +8,18 @@ help:
 	@echo "  make test       lance toute la suite de tests"
 	@echo "  make lint       vérifie le style"
 	@echo "  make serve      démarre l'API en local sur le port 8000"
+	@echo "  make console    ouvre la console du participant sur le port 8501"
 	@echo "  make up         démarre l'API + Prometheus + Grafana (atelier 2)"
 	@echo "  make replay     rejoue du trafic normal"
 	@echo "  make drift      rejoue le trafic 2026 et produit le rapport (atelier 3)"
+	@echo "  make logs       affiche la fin du journal logs/lab.log"
 	@echo "  make down       arrête la pile"
 
 install:
 	pip install -r requirements.txt
+
+install-console:
+	pip install -r requirements-console.txt
 
 smoke:
 	@echo "1/4  version de Python"
@@ -43,6 +48,11 @@ lint:
 serve:
 	uvicorn src.serve:app --host 0.0.0.0 --port 8000 --reload
 
+# La console lancée ici voit votre environnement Python réel : elle peut donc
+# valider l'onglet « Mon poste » en entier, ce que la version Docker ne peut pas.
+console:
+	streamlit run src/console.py --server.port 8501 --browser.gatherUsageStats false
+
 replay:
 	python -m src.replay --n 500 --url http://localhost:8001
 
@@ -55,13 +65,19 @@ drift:
 up:
 	docker compose up -d --build
 	@echo ""
+	@echo "  Console    http://localhost:8502     <- commencez ici"
 	@echo "  API        http://localhost:8001/docs"
 	@echo "  Prometheus http://localhost:9091"
 	@echo "  Grafana    http://localhost:3002"
+
+# Tout ce que produisent l'entraînement, la porte de qualité, le rejeu, le
+# rapport et le service converge dans ce seul fichier.
+logs:
+	@tail -n 40 logs/lab.log 2>/dev/null || echo "Aucun journal pour l'instant. Lancez make train."
 
 down:
 	docker compose down
 
 clean:
-	rm -rf models/*.pkl reports/*.json reports/*.html reports/*.csv
+	rm -rf models/*.pkl reports/*.json reports/*.html reports/*.csv logs/*.log logs/*.log.*
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

@@ -19,6 +19,8 @@ import time
 import pandas as pd
 import requests
 
+from src import journal
+
 RACINE = pathlib.Path(__file__).resolve().parents[1]
 COLONNES = [
     "montant",
@@ -30,6 +32,7 @@ COLONNES = [
 
 
 def rejouer(chemin: str, n: int, url: str, pause: float) -> pd.DataFrame:
+    log = journal.configurer("replay")
     df = pd.read_csv(RACINE / chemin)
     if n and n < len(df):
         df = df.sample(n=n, random_state=7).reset_index(drop=True)
@@ -51,6 +54,7 @@ def rejouer(chemin: str, n: int, url: str, pause: float) -> pd.DataFrame:
         except Exception as exc:  # noqa: BLE001
             erreurs += 1
             if erreurs <= 3:
+                log.warning(f"erreur sur la requête {i} : {exc}")
                 print(f"  erreur sur la requête {i} : {exc}", file=sys.stderr)
         if pause:
             time.sleep(pause)
@@ -60,18 +64,22 @@ def rejouer(chemin: str, n: int, url: str, pause: float) -> pd.DataFrame:
     duree = time.time() - debut
     resultat = pd.DataFrame(lignes)
 
-    print(f"\n{len(resultat)} prédictions en {duree:.1f} s "
-          f"({len(resultat) / max(duree, 0.01):.0f} req/s)")
+    journal.dire(
+        log,
+        f"\n{len(resultat)} prédictions en {duree:.1f} s "
+        f"({len(resultat) / max(duree, 0.01):.0f} req/s)",
+    )
     if erreurs:
-        print(f"{erreurs} requêtes en erreur")
+        journal.dire(log, f"{erreurs} requêtes en erreur")
     if not resultat.empty:
-        print(f"score moyen        : {resultat.score.mean():.4f}")
-        print(f"taux de signalement: {resultat.signalee.mean():.2%}")
+        journal.dire(log, f"score moyen        : {resultat.score.mean():.4f}")
+        journal.dire(log, f"taux de signalement: {resultat.signalee.mean():.2%}")
 
     return resultat
 
 
 def principal():
+    log = journal.configurer("replay")
     ap = argparse.ArgumentParser(description="Rejoue du trafic contre l'API.")
     ap.add_argument("--input", default="data/reference_2025.csv",
                     help="fichier de trafic à rejouer")
@@ -82,14 +90,14 @@ def principal():
     ap.add_argument("--sortie", default="reports/predictions.csv")
     args = ap.parse_args()
 
-    print(f"Rejeu de {args.input} vers {args.url}")
+    journal.dire(log, f"Rejeu de {args.input} vers {args.url}")
     resultat = rejouer(args.input, args.n, args.url, args.pause)
 
     if not resultat.empty:
         (RACINE / "reports").mkdir(exist_ok=True)
         chemin = RACINE / args.sortie
         resultat.to_csv(chemin, index=False)
-        print(f"Prédictions écrites dans {args.sortie}")
+        journal.dire(log, f"Prédictions écrites dans {args.sortie}")
 
 
 if __name__ == "__main__":

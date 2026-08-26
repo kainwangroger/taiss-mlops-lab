@@ -15,16 +15,21 @@ import sys
 
 import yaml
 
+from src import journal
+
 RACINE = pathlib.Path(__file__).resolve().parents[1]
 
 
 def evaluer() -> int:
+    log = journal.configurer("evaluate")
+    journal.demarrer(log, "porte de qualité")
+
     with open(RACINE / "params.yaml", encoding="utf-8") as f:
         params = yaml.safe_load(f)
 
     chemin = RACINE / "reports" / "metriques.json"
     if not chemin.exists():
-        print("ÉCHEC : aucune métrique trouvée. Lancez d'abord python -m src.train")
+        journal.dire(log, "ÉCHEC : aucune métrique trouvée. Lancez d'abord python -m src.train")
         return 1
 
     with open(chemin, encoding="utf-8") as f:
@@ -35,29 +40,29 @@ def evaluer() -> int:
         "rappel": params["evaluation"]["seuil_rappel"],
     }
 
-    print(f"Modèle {m['version_modele']} — seuil de décision {m['seuil_decision']}")
-    print(f"{'métrique':<12}{'obtenu':>10}{'exigé':>10}   verdict")
-    print("-" * 46)
+    journal.dire(log, f"Modèle {m['version_modele']} — seuil de décision {m['seuil_decision']}")
+    journal.dire(log, f"{'métrique':<12}{'obtenu':>10}{'exigé':>10}   verdict")
+    journal.dire(log, "-" * 46)
 
     echecs = []
     for nom, exige in seuils.items():
         obtenu = m[nom]
         ok = obtenu >= exige
-        print(f"{nom:<12}{obtenu:>10.4f}{exige:>10.4f}   {'OK' if ok else 'ÉCHEC'}")
+        journal.dire(log, f"{nom:<12}{obtenu:>10.4f}{exige:>10.4f}   {'OK' if ok else 'ÉCHEC'}")
         if not ok:
             echecs.append((nom, obtenu, exige))
 
-    print("-" * 46)
+    journal.dire(log, "-" * 46)
     if echecs:
         for nom, obtenu, exige in echecs:
-            print(
+            journal.dire(log,
                 f"ÉCHEC : le seuil « {nom} » n'est pas tenu — "
                 f"{obtenu:.4f} obtenu, {exige:.4f} exigé."
             )
-        print("La fusion est refusée. Corrigez le modèle ou justifiez le seuil.")
+        journal.dire(log, "La fusion est refusée. Corrigez le modèle ou justifiez le seuil.")
         return 1
 
-    print("Tous les seuils sont tenus. La fusion est autorisée.")
+    journal.dire(log, "Tous les seuils sont tenus. La fusion est autorisée.")
     return 0
 
 

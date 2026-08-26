@@ -27,9 +27,10 @@ import pandas as pd
 import yaml
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
+from src import journal
 from src.features import construire_features
 
 RACINE = pathlib.Path(__file__).resolve().parents[1]
@@ -42,6 +43,11 @@ SEUIL_DECISION = PARAMS["evaluation"]["seuil_decision"]
 
 app = FastAPI(title="Détection de fraude mobile money", version=VERSION_MODELE)
 _modele = None
+
+# Chaque requête servie atterrit dans logs/lab.log. Une seule ligne ici, et
+# le service laisse une trace qui survit à la fermeture du terminal.
+JOURNAL = journal.configurer("serve")
+journal.observer_requetes(app, JOURNAL)
 
 CATEGORIES_CONNUES = {"particulier", "agent", "facture"}
 _derniers_scores: list = []
@@ -71,29 +77,8 @@ _derniers_scores: list = []
 #     SCORE_MOYEN = Gauge(...)
 #     CATEGORIE_INCONNUE = Counter(...)
 #
-# Le corrigé est sur la branche solution-atelier-2.
+# Le code à coller est dans docs/ATELIER-2.md, étapes 2 à 4.
 # =============================================================================
-
-PREDICTIONS = Counter(
-    "predictions_total",
-    "Nombre de prédictions servies",
-    ["version_modele", "classe"],
-)
-LATENCE = Histogram(
-    "inference_secondes",
-    "Durée d'inférence en secondes",
-    ["version_modele"],
-)
-SCORE_MOYEN = Gauge(
-    "score_moyen_glissant",
-    "Score moyen des 200 dernières prédictions",
-    ["version_modele"],
-)
-CATEGORIE_INCONNUE = Counter(
-    "categorie_inconnue_total",
-    "Nombre de prédictions avec une catégorie inconnue",
-    ["version_modele", "champ"],
-)
 
 
 class Transaction(BaseModel):
@@ -134,8 +119,6 @@ def predire(transaction: Transaction):
     #
     #     if transaction.type_contrepartie not in CATEGORIES_CONNUES:
     #         CATEGORIE_INCONNUE.labels(VERSION_MODELE, "type_contrepartie").inc()
-    if transaction.type_contrepartie not in CATEGORIES_CONNUES:
-        CATEGORIE_INCONNUE.labels(VERSION_MODELE, "type_contrepartie").inc()
 
     score = float(modele.predict_proba(construire_features(df))[0][1])
     signalee = int(score >= SEUIL_DECISION)
@@ -152,14 +135,6 @@ def predire(transaction: Transaction):
     #     SCORE_MOYEN.labels(VERSION_MODELE).set(
     #         sum(_derniers_scores) / len(_derniers_scores)
     #     )
-    LATENCE.labels(VERSION_MODELE).observe(duree)
-    PREDICTIONS.labels(VERSION_MODELE, "signalee" if signalee else "normale").inc()
-
-    _derniers_scores.append(score)
-    del _derniers_scores[:-200]
-    SCORE_MOYEN.labels(VERSION_MODELE).set(
-        sum(_derniers_scores) / len(_derniers_scores)
-    )
 
     return {
         "score": round(score, 4),

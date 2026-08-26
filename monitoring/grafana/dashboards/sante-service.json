@@ -1,0 +1,211 @@
+{
+  "uid": "taiss-sante-service",
+  "title": "TAISS 2026 — Aller plus loin : santé du service",
+  "tags": ["taiss", "mlops", "aller-plus-loin"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Disponibilité de l'API",
+      "description": "Prometheus arrive-t-il à joindre la cible ? C'est la seule métrique qui distingue « le service est tombé » de « personne n'envoie de trafic ». Sur le tableau de bord de l'atelier 2, les deux cas donnent exactement la même image : des courbes vides.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "up{job=\"api-fraude\"}", "legendFormat": "api", "refId": "A" }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "INDISPONIBLE", "index": 0 },
+                "1": { "text": "EN LIGNE", "index": 1 }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#C8102E", "value": null },
+              { "color": "#17795E", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Ancienneté du processus",
+      "description": "Temps écoulé depuis le démarrage du conteneur. Un chiffre qui repart de zéro tout seul est le signe d'un redémarrage — donc d'un plantage, puisque docker-compose déclare restart: unless-stopped.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "time() - process_start_time_seconds", "legendFormat": "uptime", "refId": "A" }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "#17795E", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Mémoire résidente",
+      "description": "Mémoire physique réellement occupée par le processus Python. C'est le chiffre à regarder quand un binôme voit son conteneur se faire tuer sur une machine modeste.",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "process_resident_memory_bytes", "legendFormat": "RSS", "refId": "A" }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#17795E", "value": null },
+              { "color": "#C8871B", "value": 536870912 },
+              { "color": "#C8102E", "value": 805306368 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "CPU consommé",
+      "description": "Fraction d'un cœur utilisée par le service. 1 = un cœur saturé. Au-delà, les requêtes commencent à faire la queue et la latence monte sans que le modèle n'ait changé.",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total[1m])", "legendFormat": "cpu", "refId": "A" }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#17795E", "value": null },
+              { "color": "#C8871B", "value": 0.7 },
+              { "color": "#C8102E", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Mémoire du processus",
+      "description": "Mémoire résidente et mémoire virtuelle. Une résidente qui monte en escalier sans jamais redescendre, rejeu après rejeu, est une fuite : le modèle ou le cache retient quelque chose qu'il devrait relâcher.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "process_resident_memory_bytes", "legendFormat": "résidente (RSS)", "refId": "A" },
+        { "expr": "process_virtual_memory_bytes", "legendFormat": "virtuelle", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU et latence d'inférence",
+      "description": "Les deux courbes superposées. Si la latence monte en même temps que le CPU, le service est saturé — on ajoute des ressources. Si elle monte CPU à plat, le problème est ailleurs : le modèle, les données, ou une dépendance externe.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total[1m])", "legendFormat": "CPU (cœurs)", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(inference_secondes_bucket[1m])))", "legendFormat": "latence p95 (s)", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "latence p95 (s)" },
+            "properties": [{ "id": "unit", "value": "s" }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Descripteurs de fichiers ouverts",
+      "description": "Sockets et fichiers ouverts par le processus, face à la limite du système. Une courbe qui grimpe sans plafonner annonce une panne certaine à échéance connue : le service s'arrêtera quand la limite sera atteinte.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "targets": [
+        { "expr": "process_open_fds", "legendFormat": "ouverts", "refId": "A" },
+        { "expr": "process_max_fds", "legendFormat": "limite", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "alertlist",
+      "title": "Alertes",
+      "description": "État courant des règles déclarées dans monitoring/grafana/provisioning/alerting/regles.yaml. C'est ici que se voit la différence entre un seuil de couleur — qui exige que quelqu'un regarde l'écran — et une alerte, qui a un état propre et une durée avant déclenchement.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "maxItems": 20,
+        "sortOrder": 3,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "dashboardTitle": "",
+        "folder": "",
+        "alertInstanceLabelFilter": "",
+        "stateFilter": { "firing": true, "pending": true, "error": true, "noData": false, "normal": true }
+      }
+    }
+  ]
+}

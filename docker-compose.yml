@@ -4,6 +4,11 @@
 #   prometheus : collecte les métriques exposées sur /metrics.
 #   grafana    : les affiche. Le tableau de bord est pré-provisionné, vous
 #                n'avez rien à construire : il doit s'afficher tout seul.
+#   console    : HORS ATELIERS. La plateforme — pipeline, inférence, monitoring.
+#                Sous profil « plateforme » : « docker compose up -d » ne la
+#                démarre pas. Voir la fin de docs/ATELIER-3.md.
+#   mlflow     : HORS ATELIERS. Sous profil « plus-loin » : « docker compose
+#                up -d » ne le démarre pas. Voir la section MLflow du README.
 #
 #   docker compose up -d      pour lancer
 #   docker compose down       pour tout arrêter
@@ -14,6 +19,10 @@ services:
     container_name: taiss-api
     ports:
       - "8001:8000"
+    volumes:
+      # Les requêtes servies rejoignent le journal du poste : un seul fichier
+      # pour l'entraînement, la porte de qualité, le rejeu et le service.
+      - ./logs:/app/logs
     restart: unless-stopped
 
   prometheus:
@@ -46,4 +55,55 @@ services:
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+    restart: unless-stopped
+
+  console:
+    profiles: ["plateforme"]
+    build:
+      context: .
+      dockerfile: Dockerfile.console
+    container_name: taiss-console
+    ports:
+      - "8502:8501"
+    environment:
+      CONSOLE_MODE: "docker"
+      API_URL: "http://api:8000"
+      PROMETHEUS_URL: "http://prometheus:9090"
+      GRAFANA_URL: "http://grafana:3000"
+    volumes:
+      # La console lit l'état réel du dépôt du participant, pas celui figé
+      # dans l'image : le seuil qu'il modifie à l'atelier 1, les tests qu'il
+      # complète, et les rapports qu'il produit.
+      - ./params.yaml:/app/params.yaml:ro
+      - ./tests:/app/tests:ro
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    depends_on:
+      - api
+      - prometheus
+      - grafana
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Hors ateliers — section « aller plus loin ».
+  #
+  # Ce service est sous profil : `docker compose up -d` l'ignore. Pour le
+  # démarrer, il faut le demander explicitement :
+  #
+  #     docker compose --profile plus-loin up -d
+  #
+  # Rien d'autre dans le lab n'en dépend.
+  # ---------------------------------------------------------------------------
+  mlflow:
+    profiles: ["plus-loin"]
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: taiss-mlflow
+    ports:
+      - "5001:5000"
+    volumes:
+      # Les runs, la base SQLite et les artefacts restent sur le poste : arrêter
+      # le conteneur ne perd rien.
+      - ./mlruns:/mlruns
     restart: unless-stopped

@@ -1,0 +1,217 @@
+# ---------------------------------------------------------------------------
+# ALLER PLUS LOIN — de vraies alertes.
+#
+# Le tableau de bord de l'atelier 2 colore des chiffres en rouge. C'est utile,
+# mais cela suppose que quelqu'un regarde l'écran au bon moment. Une alerte,
+# elle, a un état propre (normal / en attente / déclenchée), une durée avant
+# déclenchement — le « for » — et peut être routée vers un destinataire.
+#
+# Grafana lit ce fichier au démarrage : rien à cliquer. Les règles apparaissent
+# dans Alerting > Alert rules, et dans le panneau « Alertes » du tableau de bord
+# « Aller plus loin : santé du service ».
+#
+# Le « for » est le paramètre le plus important et le moins compris : il évite
+# de réveiller quelqu'un pour un pic de trois secondes. Une alerte sans « for »
+# est une alerte qui finira par être ignorée.
+#
+# NOTE : aucun point de contact n'est configuré. Les alertes changent d'état et
+# sont visibles dans Grafana, mais ne partent nulle part. Router une alerte vers
+# un vrai destinataire (courriel, Slack, PagerDuty) est l'étape suivante, et
+# elle demande une décision qui n'est pas technique : qui est réveillé, et pour
+# quoi.
+# ---------------------------------------------------------------------------
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: service-fraude
+    folder: "TAISS 2026"
+    interval: 30s
+    rules:
+
+      # -- 1. Le service ne répond plus ------------------------------------
+      # La seule alerte vraiment indispensable. Sans elle, une API tombée et
+      # une absence de trafic produisent la même image : des courbes vides.
+      - uid: taiss-api-indisponible
+        title: API de détection indisponible
+        condition: B
+        for: 1m
+        labels:
+          severity: critique
+          domaine: systeme
+        annotations:
+          summary: "Prometheus ne joint plus l'API depuis plus d'une minute."
+          description: >-
+            La cible api:8000 ne répond pas. Le service est tombé, ou le réseau
+            Docker est cassé. Vérifier « docker compose ps » puis les journaux
+            du conteneur taiss-api.
+        noDataState: Alerting
+        execErrState: Error
+        isPaused: false
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              instant: true
+              expr: up{job="api-fraude"}
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+
+      # -- 2. Latence dégradée ---------------------------------------------
+      # Mesuré sur ce modèle : p50 ~45 ms, p95 ~72 ms. Le seuil à 250 ms laisse
+      # largement de quoi absorber une machine chargée sans crier au loup.
+      - uid: taiss-latence-degradee
+        title: Latence d'inférence dégradée
+        condition: B
+        for: 2m
+        labels:
+          severity: avertissement
+          domaine: systeme
+        annotations:
+          summary: "La latence p95 dépasse 250 ms depuis 2 minutes."
+          description: >-
+            Le p95 nominal de ce modèle est d'environ 70 ms. Croiser avec la
+            courbe CPU du tableau de bord « santé du service » : latence et CPU
+            qui montent ensemble = saturation, on ajoute des ressources.
+            Latence seule = le problème est ailleurs.
+        noDataState: NoData
+        execErrState: Error
+        isPaused: false
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              instant: true
+              expr: histogram_quantile(0.95, sum by (le) (rate(inference_secondes_bucket[5m])))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.25] }
+
+      # -- 3. Mémoire ------------------------------------------------------
+      # Le symptôme déjà documenté dans ATELIER-2.md (« mémoire insuffisante »),
+      # rendu observable au lieu d'être deviné.
+      - uid: taiss-memoire-elevee
+        title: Mémoire du service élevée
+        condition: B
+        for: 5m
+        labels:
+          severity: avertissement
+          domaine: systeme
+        annotations:
+          summary: "Le processus dépasse 768 Mio de mémoire résidente."
+          description: >-
+            Sur une machine modeste faisant tourner trois conteneurs, c'est le
+            palier après lequel le noyau commence à tuer des processus.
+        noDataState: NoData
+        execErrState: Error
+        isPaused: false
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              instant: true
+              expr: process_resident_memory_bytes
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [805306368] }
+
+      # -- 4. Catégorie inconnue -------------------------------------------
+      # L'alerte proprement ML. Le service ne plante pas : il se trompe en
+      # silence. C'est exactement ce que déclenche l'arrivée de « marchand »
+      # dans le trafic 2026 de l'atelier 3.
+      - uid: taiss-categorie-inconnue
+        title: Catégorie inconnue reçue par le modèle
+        condition: B
+        for: 0s
+        labels:
+          severity: avertissement
+          domaine: modele
+        annotations:
+          summary: "Le modèle reçoit des valeurs qu'il n'a jamais vues à l'entraînement."
+          description: >-
+            Une modalité absente du jeu d'entraînement est arrivée en
+            production. Le service répond quand même, avec un encodage par
+            défaut : les prédictions sur ces lignes ne veulent rien dire.
+            C'est une panne silencieuse, pas une erreur.
+        noDataState: NoData
+        execErrState: Error
+        isPaused: false
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              instant: true
+              expr: sum(increase(categorie_inconnue_total[5m]))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+
+      # -- 5. Taux de signalement anormal ----------------------------------
+      # Mesuré : 0,8 % sur le trafic de référence 2025, 15 % sur le trafic
+      # dérivé de 2026. Le seuil à 5 % sépare proprement les deux régimes.
+      # Noter le « rate » : contrairement au panneau de l'atelier 2, cette
+      # règle regarde une fenêtre glissante, pas le cumul depuis le démarrage.
+      - uid: taiss-taux-signalement
+        title: Taux de signalement anormalement élevé
+        condition: B
+        for: 3m
+        labels:
+          severity: avertissement
+          domaine: modele
+        annotations:
+          summary: "Plus de 5 % du trafic est signalé — la référence 2025 est à 0,8 %."
+          description: >-
+            Le modèle signale beaucoup plus que d'habitude. Deux lectures
+            possibles, et elles n'appellent pas la même décision : une vraie
+            vague de fraude, ou une dérive des données d'entrée. Produire le
+            rapport de dérive (python -m src.drift_report) avant de trancher.
+        noDataState: NoData
+        execErrState: Error
+        isPaused: false
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                sum(rate(predictions_total{classe="signalee"}[10m]))
+                / clamp_min(sum(rate(predictions_total[10m])), 0.001)
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.05] }

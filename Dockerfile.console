@@ -1,0 +1,35 @@
+# ------------------------------------------------------------------------------
+# Console du participant — image séparée de celle de l'API.
+#
+# L'API et la console ne partagent pas la même image : la console embarque
+# Streamlit, l'API doit rester minimale. Elles partagent en revanche le même
+# code source et les mêmes versions épinglées.
+# ------------------------------------------------------------------------------
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CONSOLE_MODE=docker
+
+WORKDIR /app
+
+COPY requirements.txt requirements-console.txt ./
+RUN pip install --no-cache-dir -r requirements-console.txt
+
+# pyproject.toml porte la configuration pytest : la console s'en sert pour
+# lancer les tests de contrat de l'atelier 1 depuis l'onglet correspondant.
+COPY params.yaml pyproject.toml ./
+COPY src/ ./src/
+COPY data/ ./data/
+
+# Ni modèle ni entraînement ici : la console interroge l'API, elle ne prédit pas.
+RUN mkdir -p reports models
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "src/console.py", \
+     "--server.address=0.0.0.0", \
+     "--server.port=8501", \
+     "--server.headless=true", \
+     "--browser.gatherUsageStats=false"]

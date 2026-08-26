@@ -1,0 +1,9 @@
+# Dépendances de la console du participant (src/console.py).
+#
+# Volontairement séparées de requirements.txt : la console ne doit peser ni sur
+# l'image de l'API, ni sur le temps d'installation de la chaîne d'intégration.
+# La ligne ci-dessous réutilise exactement les mêmes versions épinglées.
+
+-r requirements.txt
+
+streamlit==1.41.1
