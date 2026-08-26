@@ -184,12 +184,52 @@ def trouver_api() -> str | None:
     return None
 
 
-def params() -> dict:
+def lire_params() -> tuple[dict, str | None]:
+    """Renvoie (params, erreur). Ne masque jamais la cause : un dict vide rendu
+    en silence se transforme en KeyError trois fonctions plus loin."""
+    chemin = RACINE / "params.yaml"
+    if not chemin.exists():
+        return {}, f"{chemin} est introuvable."
+    if chemin.is_dir():
+        # Piège classique de Docker Desktop : quand le montage d'un fichier
+        # unique ne se résout pas côté hôte, Docker crée un dossier vide à sa
+        # place plutôt que d'échouer.
+        return {}, (
+            f"{chemin} est un dossier, pas un fichier. Le montage "
+            "« ./params.yaml:/app/params.yaml » ne s'est pas résolu : lancez "
+            "docker compose depuis la racine du dépôt, puis "
+            "« docker compose down » et « up -d --build »."
+        )
     try:
-        with open(RACINE / "params.yaml", encoding="utf-8") as f:
-            return yaml.safe_load(f)
-    except Exception:
-        return {}
+        with open(chemin, encoding="utf-8") as f:
+            charge = yaml.safe_load(f)
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"{chemin} est illisible : {exc}"
+    if not isinstance(charge, dict):
+        return {}, f"{chemin} ne contient pas un dictionnaire YAML."
+    manquantes = [c for c in ("donnees", "evaluation", "version_modele")
+                  if c not in charge]
+    if manquantes:
+        return charge, f"{chemin} n'a pas les clés : {', '.join(manquantes)}."
+    return charge, None
+
+
+def params() -> dict:
+    """Les paramètres, ou un dict vide. Utilisez exiger_params() dans un onglet."""
+    return lire_params()[0]
+
+
+def exiger_params():
+    """Affiche la vraie cause et interrompt l'onglet si params.yaml est inutilisable."""
+    charge, erreur = lire_params()
+    if erreur:
+        st.error(f"**Configuration illisible.** {erreur}")
+        st.caption(
+            "Dans un conteneur, params.yaml vient du montage déclaré dans "
+            "docker-compose.yml. Vérifiez-le, puis relancez avec `--build`."
+        )
+        st.stop()
+    return charge
 
 
 def metriques_modele() -> dict | None:
@@ -275,7 +315,10 @@ def lancer(commande: list[str]) -> tuple[bool, str]:
 
 
 def etape_chargement(etape: Etape) -> None:
-    p = params()
+    p, erreur = lire_params()
+    if erreur:
+        etape.etat, etape.resume, etape.detail = "echoue", "configuration illisible", erreur
+        return
     chemin = RACINE / p["donnees"]["reference"]
     if not chemin.exists():
         etape.etat, etape.resume = "echoue", f"{chemin.name} introuvable"
@@ -578,7 +621,7 @@ def onglet_inference(api: str | None) -> None:
                     return
                 from src.features import construire_features
 
-                p = params()
+                p = exiger_params()
                 score = float(modele.predict_proba(construire_features(pd.DataFrame([charge])))[0][1])
                 reponse = {
                     "score": round(score, 4),
@@ -604,7 +647,7 @@ def onglet_inference(api: str | None) -> None:
                 )
 
     with lot:
-        p = params()
+        p = exiger_params()
         choix = st.selectbox(
             "Jeu à scorer",
             [p["donnees"]["reference"], p["donnees"]["derive"]],
@@ -793,6 +836,19 @@ def principal() -> None:
         "Plateforme d'inférence et de supervision · Togo AI Summer School 2026 · "
         + ("mode Docker" if EN_DOCKER else "mode local")
     )
+
+    _, erreur_config = lire_params()
+    if erreur_config:
+        st.error(
+            f"**Configuration illisible — {erreur_config}**\n\n"
+            "Tout ce qui suit en dépend : les chemins des jeux de données, la "
+            "version du modèle et les seuils viennent de ce fichier."
+        )
+        st.caption(
+            f"Racine détectée : `{RACINE}` · "
+            + ("montage déclaré dans docker-compose.yml" if EN_DOCKER
+               else "fichier attendu à la racine du dépôt")
+        )
 
     api = trouver_api()
 
